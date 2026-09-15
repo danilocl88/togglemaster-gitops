@@ -1,0 +1,90 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: togglemaster-api-key-seed
+  namespace: togglemaster
+  labels:
+    app.kubernetes.io/part-of: togglemaster
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: togglemaster-api-key-seed
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api-key-seed
+          image: public.ecr.aws/docker/library/postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              case "$SERVICE_API_KEY_SHA256" in
+                *[!0-9a-fA-F]*|'')
+                  echo "SERVICE_API_KEY_SHA256 invalid." >&2
+                  exit 1
+                  ;;
+              esac
+
+              if [ "${#SERVICE_API_KEY_SHA256}" -ne 64 ]; then
+                echo "SERVICE_API_KEY_SHA256 must contain 64 hexadecimal characters." >&2
+                exit 1
+              fi
+
+              psql "$AUTH_DATABASE_URL" \
+                -v ON_ERROR_STOP=1 \
+                -c "
+                  INSERT INTO api_keys (
+                    name,
+                    key_hash,
+                    is_active
+                  )
+                  VALUES (
+                    'evaluation-service',
+                    '$SERVICE_API_KEY_SHA256',
+                    true
+                  )
+                  ON CONFLICT (key_hash)
+                  DO UPDATE SET
+                    name = EXCLUDED.name,
+                    is_active = true;
+                "
+
+              echo "Service API key hash seeded successfully."
+          env:
+            - name: AUTH_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: togglemaster-runtime-secrets
+                  key: AUTH_DATABASE_URL
+
+            - name: SERVICE_API_KEY_SHA256
+              valueFrom:
+                secretKeyRef:
+                  name: togglemaster-runtime-secrets
+                  key: SERVICE_API_KEY_SHA256
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

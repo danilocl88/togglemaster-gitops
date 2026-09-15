@@ -1,0 +1,8 @@
+*.swp
+*.tmp
+*.bak
+.env
+.env.*
+secret*.yaml
+*secret*.yml
+credentials*

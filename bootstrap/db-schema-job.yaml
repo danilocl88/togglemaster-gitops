@@ -1,0 +1,84 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: togglemaster-db-schema
+  namespace: togglemaster
+  labels:
+    app.kubernetes.io/part-of: togglemaster
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "-2"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: togglemaster-db-schema
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: db-schema
+          image: public.ecr.aws/docker/library/postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              echo "Applying auth schema..."
+              psql "$AUTH_DATABASE_URL" -v ON_ERROR_STOP=1 -f /sql/auth.sql
+
+              echo "Applying flag schema..."
+              psql "$FLAG_DATABASE_URL" -v ON_ERROR_STOP=1 -f /sql/flag.sql
+
+              echo "Applying targeting schema..."
+              psql "$TARGETING_DATABASE_URL" -v ON_ERROR_STOP=1 -f /sql/targeting.sql
+
+              echo "Database schemas applied successfully."
+          env:
+            - name: AUTH_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: togglemaster-runtime-secrets
+                  key: AUTH_DATABASE_URL
+
+            - name: FLAG_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: togglemaster-runtime-secrets
+                  key: FLAG_DATABASE_URL
+
+            - name: TARGETING_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: togglemaster-runtime-secrets
+                  key: TARGETING_DATABASE_URL
+
+          volumeMounts:
+            - name: schemas
+              mountPath: /sql
+              readOnly: true
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+
+      volumes:
+        - name: schemas
+          configMap:
+            name: togglemaster-db-schemas
