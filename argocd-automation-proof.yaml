@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-automation-proof
+  namespace: togglemaster
+  labels:
+    app.kubernetes.io/part-of: togglemaster
+    app.kubernetes.io/component: gitops-proof
+data:
+  proof: desired
+  purpose: auto-sync-self-heal-prune
