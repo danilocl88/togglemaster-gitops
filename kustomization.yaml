@@ -25,7 +25,6 @@ resources:
   - apps/analytics-service-deployment.yaml
   - apps/analytics-service-service.yaml
 
-  - argocd-automation-proof.yaml
 labels:
   - pairs:
       app.kubernetes.io/managed-by: argocd
