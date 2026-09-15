@@ -26,7 +26,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: analytics-service
-          image: 461624773988.dkr.ecr.us-east-1.amazonaws.com/analytics-service:1cddda994a4e802e597129c632fd9cd05e37c70f
+          image: 461624773988.dkr.ecr.us-east-1.amazonaws.com/analytics-service:52dafb568e13b71e1d0c6d77b091cdf66a3a843a
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
