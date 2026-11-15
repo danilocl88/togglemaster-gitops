@@ -31,6 +31,9 @@ spec:
           ports:
             - name: http
               containerPort: 8004
+          envFrom:
+            - secretRef:
+                name: togglemaster-aws-session
           env:
             - name: PORT
               value: "8004"
