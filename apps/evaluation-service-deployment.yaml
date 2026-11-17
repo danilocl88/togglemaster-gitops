@@ -35,6 +35,8 @@ spec:
             - secretRef:
                 name: togglemaster-aws-session
           env:
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-traces-opentelemetry-collector.monitoring.svc.cluster.local:4318"
             - name: PORT
               value: "8004"
             - name: REDIS_URL
